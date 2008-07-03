@@ -1,0 +1,3 @@
+#!/bin/sh
+
+perl -Ilib -MPalm::PDB -MPalm::Treo680MessagesDB=debug,2 -e 'Palm::PDB->new()->Load("palm-messages-database.pdb")'
