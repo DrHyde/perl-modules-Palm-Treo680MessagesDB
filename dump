@@ -1,3 +1,18 @@
-#!/bin/sh
+#!perl -Ilib
 
-perl -Ilib -MPalm::PDB -MPalm::Treo680MessagesDB=debug,2 -e 'Palm::PDB->new()->Load("palm-messages-database.pdb")'
+use strict;
+use warnings;
+
+use Palm::PDB;
+use Palm::Treo680MessagesDB;# debug => 2;
+use Data::Dumper;
+
+my $pdb = Palm::PDB->new()->Load("palm-messages-database.pdb");
+
+foreach my $record (
+    # grep { $_->{offset} == 131357 }
+    grep { $_->{type} eq '0x400C' }
+    @{$pdb->{records}}
+) {
+    print Dumper($record);
+}

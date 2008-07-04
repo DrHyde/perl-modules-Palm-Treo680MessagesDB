@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.2 2008/07/03 21:10:48 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.3 2008/07/04 15:15:39 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -7,6 +7,7 @@ use warnings;
 
 use Palm::Raw();
 use DateTime;
+use Data::Hexdumper ();
 
 use vars qw($VERSION @ISA $timezone $incl_raw $debug);
 
@@ -22,7 +23,6 @@ sub import {
     $timezone = $opts{timezone} if(exists($opts{timezone}));
     $incl_raw = $opts{incl_raw} if(exists($opts{incl_raw}));
     $debug    = $opts{debug}    if(exists($opts{debug}));
-    eval "use Data::Hexdumper ()" if($debug);
     Palm::PDB::RegisterPDBHandlers(__PACKAGE__, [MsSt => 'MsDb']);
 }
 
@@ -57,12 +57,13 @@ Defaults to 'Europe/London'.
 =item incl_raw
 
 Whether to include the raw binary blob of data in the parsed records.
-Only really useful for debuggering, and so defaults to false.
+Defaults to false.
 
 =item debug
 
-Spit out some useful info for debugging and for reverse-engineering
-unknown record types.
+Include a hexadecimal dump of each record in the 'debug' field.
+Defaults to false.  If this is set to 2, then you may also get some
+extra warnings.
 
 =back
 
@@ -137,8 +138,33 @@ sub ParseRecord {
     my($dir, $num, $name, $msg) = ('', '', '', '');
     if($type == 0x400C || $type == 0x4009) { # 4009 not used by 680?
         $dir = ($type == 0x400C) ? 'inbound' : 'outbound';
-        ($num, $name, $msg) = (split(/\00+/, substr($buf, 34)))[0, 1, 3];
-        $msg = substr($msg, 1);
+
+	($num  = substr($buf, 0x22)) =~ s/\00.*//s;
+
+	$name = substr($buf, length($num) + 1 + 0x22);
+	$name =~ /^([^\00]*?)\00+(.*)$/s;
+	($name, my $trailer) = ($1, $2);
+	# $trailer =~ s/^\00+//;
+	$record{unknown_before_msg} = Data::Hexdumper::hexdump(data => substr($trailer, 0, 4));
+	($msg = substr($trailer, 4)) =~ s/\00.*//s;
+
+	$record{unknown_after_message} = Data::Hexdumper::hexdump(data => substr($trailer, 4 + length($msg) + 1, 2));
+
+	my $epoch = substr($trailer, 4 + length($msg) + 1 + 2, 4);
+	$record{unknown_after_timestamp} = Data::Hexdumper::hexdump(data => substr($trailer, 4 + length($msg) + 1 + 2 + 4));
+
+        $record{epoch} = $epoch =
+	         0x1000000 * ord(substr($epoch, 0, 1)) +
+	         0x10000   * ord(substr($epoch, 1, 1)) +
+                 0x100     * ord(substr($epoch, 2, 1)) +
+	                     ord(substr($epoch, 3, 1)) -
+	         2082844800; # offset from Palm epoch (1904) to Unix
+        my $dt = DateTime->from_epoch(
+	    epoch => $epoch,
+	    time_zone => $timezone
+	);
+	$record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
+	$record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
     } elsif($type == 0) {
         $dir = 'outbound';
         ($num, $name, $msg) = split(/\00+/, substr($buf, 0x4C), 3);
@@ -151,39 +177,17 @@ sub ParseRecord {
         $msg =~ s/^.Trsm....//s;
         $msg =~ s/\00.*$//s;
     } else {
-        printf("UNKNOWN TYPE: 0x%04X\n\n", $type) if($debug);
         $type = 'unknown';
     }
-    if($type ne 'unknown') {
-        print "Offset: $record{offset}\n" if($debug);
-        printf("Type:   0x%04X\nDir:    %s\nNumber: %s\nName:   %s\nMsg:    %s\n", $type, $dir, $num, $name, $msg) if($debug);
-        print "Buffer:\n".Data::Hexdumper::hexdump(data => $buf)
-            if($debug == 2 || ($debug && !$msg));
-        print "\n" if($debug);
-    } elsif($debug) {
-        print "Offset: $record{offset}\n";
-        print "Buffer:\n".Data::Hexdumper::hexdump(data => $buf)."\n\n";
-    }
-    # $date  = 256 * ord($bytes[2]) + ord($bytes[3]);
-    # $time  = 256 * ord($bytes[4]) + ord($bytes[5]);
-    # my $year = 1904 + (($date & 0b1111111000000000) >> 9);
-    # my $month = sprintf('%02d', ($date & 0b111100000) >> 5);
-    # my $day = sprintf('%02d', $date & 0b11111);
-    # my $hour = sprintf('%02d', $time >> 8);
-    # my $minute = sprintf('%02d', $time & 255);
-    # @record{qw(date time)} = ("$year-$month-$day", "$hour:$minute");
-    # $record{epoch} = eval { DateTime->new(
-    #     year => $year, month => $month, day => $day,
-    #     hour => $hour, minute => $minute, time_zone => $timezone
-    # )->epoch(); } || -1;
     delete $record{rawdata} unless($incl_raw);
+    $record{debug} = "\n".Data::Hexdumper::hexdump(data => $buf) if($debug);
     $record{device}    = 'Treo 680';
-    $record{direction} = '';# inbound or outbound
+    $record{direction} = $dir;  # inbound or outbound
     $record{phone}     = $record{number} = $num;
     $record{timestamp} = $record{epoch};
     $record{name}      = $name;
     $record{text}      = $msg;
-    $record{type}      = $type;
+    $record{type}      = $type eq 'unknown' ? $type : sprintf('0x%04X', $type);
     return \%record;
 }
 
