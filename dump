@@ -4,14 +4,15 @@ use strict;
 use warnings;
 
 use Palm::PDB;
-use Palm::Treo680MessagesDB;# debug => 2;
+use Palm::Treo680MessagesDB debug => 1;
 use Data::Dumper;
 
-my $pdb = Palm::PDB->new()->Load("palm-messages-database.pdb");
+my $pdb = Palm::PDB->new();
+$pdb->Load("palm-messages-database.pdb");
 
 foreach my $record (
     # grep { $_->{offset} == 131357 }
-    grep { $_->{type} eq '0x400C' }
+    # grep { $_->{type} eq '0x400C' }
     @{$pdb->{records}}
 ) {
     print Dumper($record);

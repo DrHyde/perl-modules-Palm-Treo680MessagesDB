@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.3 2008/07/04 15:15:39 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.4 2008/07/05 19:27:13 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -24,6 +24,21 @@ sub import {
     $incl_raw = $opts{incl_raw} if(exists($opts{incl_raw}));
     $debug    = $opts{debug}    if(exists($opts{debug}));
     Palm::PDB::RegisterPDBHandlers(__PACKAGE__, [MsSt => 'MsDb']);
+
+    if(!$debug) {
+        no warnings;
+        my $orig_Load = \&Palm::PDB::Load;
+        *Palm::PDB::Load = sub {
+            $orig_Load->(@_);
+            $_[0]->{records} = [grep {
+                $_->{type} ne 'unknown' &&
+                !(exists($_->{epoch}) && $_->{epoch} < 946684800) # 2000-01-01 00:00
+            } @{$_[0]->{records}}] if(
+                $_[0]->{creator} eq 'MsSt' &&
+                $_[0]->{type}    eq 'MsDb'
+            );
+        }
+    }
 }
 
 =head1 NAME
@@ -61,9 +76,14 @@ Defaults to false.
 
 =item debug
 
-Include a hexadecimal dump of each record in the 'debug' field.
-Defaults to false.  If this is set to 2, then you may also get some
-extra warnings.
+Defaults to false.
+
+If false, unknown record-types and those which look like they weren't
+parsed properly (eg they have an impossible timestamp) are suppressed.
+This is done by over-riding Palm::PDB's C<Load()> method.
+
+If true, include a hexadecimal dump of each record in the 'debug'
+field, and don't suppress unknown or badly parsed records.
 
 =back
 
@@ -139,32 +159,39 @@ sub ParseRecord {
     if($type == 0x400C || $type == 0x4009) { # 4009 not used by 680?
         $dir = ($type == 0x400C) ? 'inbound' : 'outbound';
 
-	($num  = substr($buf, 0x22)) =~ s/\00.*//s;
+        # ASCIIZ number starting at 0x22
+        ($num  = substr($buf, 0x22)) =~ s/\00.*//s;
 
-	$name = substr($buf, length($num) + 1 + 0x22);
-	$name =~ /^([^\00]*?)\00+(.*)$/s;
-	($name, my $trailer) = ($1, $2);
-	# $trailer =~ s/^\00+//;
-	$record{unknown_before_msg} = Data::Hexdumper::hexdump(data => substr($trailer, 0, 4));
-	($msg = substr($trailer, 4)) =~ s/\00.*//s;
+        # immediately followed by ASCIIZ name, with some trailing 0s
+        $name = substr($buf, length($num) + 1 + 0x22);
+        $name =~ /^([^\00]*?)\00+(.*)$/s;
+        ($name, my $after_name) = ($1, $2);
 
-	$record{unknown_after_message} = Data::Hexdumper::hexdump(data => substr($trailer, 4 + length($msg) + 1, 2));
+        # four unknown bytes
+        $record{unknown_before_msg} = Data::Hexdumper::hexdump(data => substr($after_name, 0, 4));
 
-	my $epoch = substr($trailer, 4 + length($msg) + 1 + 2, 4);
-	$record{unknown_after_timestamp} = Data::Hexdumper::hexdump(data => substr($trailer, 4 + length($msg) + 1 + 2 + 4));
+        # ASCIIZ message
+        ($msg = substr($after_name, 4)) =~ s/\00.*//s;
 
-        $record{epoch} = $epoch =
-	         0x1000000 * ord(substr($epoch, 0, 1)) +
-	         0x10000   * ord(substr($epoch, 1, 1)) +
+        # two unknown bytes
+        $record{unknown_after_message} = Data::Hexdumper::hexdump(data => substr($after_name, 4 + length($msg) + 1, 2));
+
+        # 32-bit time_t, but with 1904 epoch
+        my $epoch = substr($after_name, 4 + length($msg) + 1 + 2, 4);
+        $record{unknown_after_timestamp} = Data::Hexdumper::hexdump(data => substr($after_name, 4 + length($msg) + 1 + 2 + 4));
+
+        $record{epoch} =
+                 0x1000000 * ord(substr($epoch, 0, 1)) +
+                 0x10000   * ord(substr($epoch, 1, 1)) +
                  0x100     * ord(substr($epoch, 2, 1)) +
-	                     ord(substr($epoch, 3, 1)) -
-	         2082844800; # offset from Palm epoch (1904) to Unix
+                             ord(substr($epoch, 3, 1)) -
+                 2082844800; # offset from Palm epoch (1904) to Unix
         my $dt = DateTime->from_epoch(
-	    epoch => $epoch,
-	    time_zone => $timezone
-	);
-	$record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
-	$record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
+            epoch => $record{epoch},
+            time_zone => $timezone
+        );
+        $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
+        $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
     } elsif($type == 0) {
         $dir = 'outbound';
         ($num, $name, $msg) = split(/\00+/, substr($buf, 0x4C), 3);
@@ -180,6 +207,7 @@ sub ParseRecord {
         $type = 'unknown';
     }
     delete $record{rawdata} unless($incl_raw);
+
     $record{debug} = "\n".Data::Hexdumper::hexdump(data => $buf) if($debug);
     $record{device}    = 'Treo 680';
     $record{direction} = $dir;  # inbound or outbound
@@ -195,7 +223,7 @@ sub ParseRecord {
 
 The message format is undocumented.  Consequently it has had to be
 reverse-engineered.  There appear to be several message formats in
-the database, not all of which are handled.
+the database, not all of which are handled yet.
 
 There is currently no support for creating a new database, or for
 editing the contents of an existing database.  If you need that
@@ -203,7 +231,7 @@ functionality, please submit a patch with tests.  I will *not* write
 this myself unless I need it.
 
 Behaviour if you try to create or edit a database is currently
-undefined.
+undefined, but editing a database will almost certainly break it.
 
 =head1 BUGS and FEEDBACK
 

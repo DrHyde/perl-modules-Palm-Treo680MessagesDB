@@ -1,3 +1,4 @@
+use 5.006; # need lexical warnings
 use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME         => 'Palm::Treo680MessagesDB',
