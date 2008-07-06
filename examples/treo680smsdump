@@ -1,0 +1,25 @@
+#!perl
+
+use strict;
+use warnings;
+
+use Palm::PDB;
+use Palm::Treo680MessagesDB;
+
+my $pdb = Palm::PDB->new();
+$pdb->Load(shift());
+
+foreach my $record (
+    @{$pdb->{records}}
+) {
+    # use Data::Dumper;
+    # print Dumper($record);
+    # exit;
+    printf(
+        ($record->{direction} eq 'inbound' ? 'From:' : 'To:')."\t%s (%s)\n".
+        "When:\t%s %s\t (epoch: %s)\n".
+        "Text:\t%s\n\n",
+        map { $record->{$_} } qw(name number date time epoch text)
+    );
+    exit;
+}
