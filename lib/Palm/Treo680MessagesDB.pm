@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.5 2008/07/06 14:24:53 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.6 2008/07/06 14:41:46 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -116,16 +116,12 @@ The time of the message, if available, in HH:MM format
 
 The epoch time of the message, if available.  Note that because
 the database doesn't
-store the timezone, we assume 'Europe/London'.  If you want to change
+store the timezone, we assume 'Europe/London' when converting this
+to the seperate date and time fields.  If you want to change
 that, then suppy a timezone option when you 'use' the module.
 
-Internally, this uses the DateTime module.  In the case of
-ambiguous times then it uses the latest UTC time.  For invalid
-local times, the epoch is set to -1, an impossible number as it's
-before Palm even existed.
-
-Note that this is always the Unix epoch time.  See L<DateTime> for
-details of what this means.
+Note that this is always the Unix epoch time, even though PalmOS
+uses an epoch based on 1904.
 
 =item name
 
@@ -205,7 +201,7 @@ sub ParseRecord {
                  0x10000   * ord(substr($epoch, 1, 1)) +
                  0x100     * ord(substr($epoch, 2, 1)) +
                              ord(substr($epoch, 3, 1)) -
-                 2082844800; # offset from Palm epoch (1904) to Unix
+                 2082844800;
         my $dt = DateTime->from_epoch(
             epoch => $record{epoch},
             time_zone => $timezone
@@ -233,7 +229,7 @@ sub ParseRecord {
                  0x10000   * ord(substr($epoch, 1, 1)) +
                  0x100     * ord(substr($epoch, 2, 1)) +
                              ord(substr($epoch, 3, 1)) -
-                 2082844800; # offset from Palm epoch (1904) to Unix
+                 2082844800;
         my $dt = DateTime->from_epoch(
             epoch => $record{epoch},
             time_zone => $timezone
@@ -256,34 +252,42 @@ sub ParseRecord {
     return \%record;
 }
 
-=head1 LIMITATIONS
+=head1 BUGS, LIMITATIONS and FEEDBACK
 
 The database structure is undocumented.  Consequently it has had to be
 reverse-engineered.  There appear to be several message formats in
-the database, not all of which are handled yet.  Some of them have
-a superficial resemblance to those used by the 650, but it's only
-superficial.
+the database.  Some have a superficial resemblance to those used by
+the 650 (and which is partially documented by Palm) but there is no
+publicly available documentation that I could find for the others -
+if you know where I can get docs, please let me know!
+
+I can only reverse-engineer record formats that appear on my phone, so
+there may be some missing.  In addition, I may decode some formats
+incorrectly because they're not quite what I thought they were.  If
+this affects you, please please please send me the offending data.
 
 There is currently no support for creating a new database, or for
 editing the contents of an existing database.  If you need that
 functionality, please submit a patch with tests.  I will *not* write
-this myself unless I need it.
-
-Behaviour if you try to create or edit a database is currently
-undefined, but editing a database will almost certainly break it.
-
-=head1 BUGS and FEEDBACK
-
-I can only reverse-engineer record formats that appear on my phone, so
-there may be some missing.  In addition, I may decode some formats
-incorrectly because they're not quite what I thought they were.
+this myself unless I need it.  Behaviour if you try to create or
+edit a database is currently undefined, but editing a database will
+almost certainly break it.
 
 If you find any bugs please report them either using
-L<http://rt.cpan.org/> or by email.  Ideally, I would like to receive a
-sample database and a test file, which fails with the latest version of
-the module but will pass when I fix the bug.  Feel free to obscure
-real names, phone numbers, and messages in the database, but you
-should ensure that phone numbers are correctly formed.
+L<http://rt.cpan.org/> or by email.  Ideally, I would like to receive
+sample data and a test file, which fails with the latest version of
+the module but will pass when I fix the bug.
+
+Sample data can be either in the form of a complete database, or a
+dump of just a single record structure, which *must* include the
+raw binary data -
+use the 'incl_raw' option when you load the module, and save the
+data structure to a file using Data::Dumper.
+Feel free to obscure
+real names, phone numbers, and messages in the data, but you
+should ensure that phone numbers are correctly formed, and that
+you don't change the length of any parts of the message.  Also,
+please don't change any non-human-readable parts of the record.
 
 =head1 SEE ALSO
 
