@@ -1,0 +1,17 @@
+ARTISTIC.txt
+CHANGES
+examples/treo680smsdump
+GPL2.txt
+lib/Palm/Treo680MessagesDB.pm
+Makefile.PL
+MANIFEST
+README
+t/02a-default-timezone.t
+t/02b-weird-timezone.t
+t/03a_dont_incl_raw.t
+t/03b_incl_raw.t
+t/04a_no_debug.t
+t/04b_debug.t
+t/messages-database.pdb
+t/pod-coverage.t
+t/pod.t
