@@ -21,5 +21,4 @@ foreach my $record (
         "Text:\t%s\n\n",
         map { $record->{$_} } qw(name number date time epoch text)
     );
-    exit;
 }
