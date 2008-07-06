@@ -11,8 +11,6 @@ my $pdb = Palm::PDB->new();
 $pdb->Load("palm-messages-database.pdb");
 
 foreach my $record (
-    # grep { $_->{offset} == 131357 }
-    # grep { $_->{type} eq '0x400C' }
     @{$pdb->{records}}
 ) {
     print Dumper($record);

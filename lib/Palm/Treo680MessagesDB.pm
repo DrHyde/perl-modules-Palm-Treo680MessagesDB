@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.4 2008/07/05 19:27:13 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.5 2008/07/06 14:24:53 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -167,18 +167,11 @@ sub ParseRecord {
         $name =~ /^([^\00]*?)\00+(.*)$/s;
         ($name, my $after_name) = ($1, $2);
 
-        # four unknown bytes
-        $record{unknown_before_msg} = Data::Hexdumper::hexdump(data => substr($after_name, 0, 4));
-
-        # ASCIIZ message
+        # four unknown bytes, then ASCIIZ message
         ($msg = substr($after_name, 4)) =~ s/\00.*//s;
 
-        # two unknown bytes
-        $record{unknown_after_message} = Data::Hexdumper::hexdump(data => substr($after_name, 4 + length($msg) + 1, 2));
-
-        # 32-bit time_t, but with 1904 epoch
+        # two unknown bytes, then 32-bit time_t, but with 1904 epoch
         my $epoch = substr($after_name, 4 + length($msg) + 1 + 2, 4);
-        $record{unknown_after_timestamp} = Data::Hexdumper::hexdump(data => substr($after_name, 4 + length($msg) + 1 + 2 + 4));
 
         $record{epoch} =
                  0x1000000 * ord(substr($epoch, 0, 1)) +
@@ -192,17 +185,61 @@ sub ParseRecord {
         );
         $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
         $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
-    } elsif($type == 0) {
-        $dir = 'outbound';
-        ($num, $name, $msg) = split(/\00+/, substr($buf, 0x4C), 3);
-        $msg =~ s/^.{9}//s;
-        $msg =~ s/\00.*$//s;
-
     } elsif($type == 0x0002) {
         $dir = 'outbound';
-        ($num, $name, $msg) = split(/\00+/, substr($buf, 0x46), 3);
-        $msg =~ s/^.Trsm....//s;
-        $msg =~ s/\00.*$//s;
+
+        # ASCIIZ number starting at 0x46
+        ($num  = substr($buf, 0x46)) =~ s/\00.*//s;
+
+        # immediately followed by ASCIIZ name, with some trailing 0s
+        # some gibberish, then an ASCIIZ message
+        $name = substr($buf, length($num) + 1 + 0x46);
+        $name =~ /^([^\00]+)\00+.Trsm....([^\00]+)\00.*$/s;
+        ($name, $msg) = ($1, $2);
+        $name .= " (may be truncated)" if($name && length($name) == 31);
+
+        # 32-bit time_t, but with 1904 epoch
+        my $epoch = substr($buf, 0x24, 4);
+        $record{epoch} =
+                 0x1000000 * ord(substr($epoch, 0, 1)) +
+                 0x10000   * ord(substr($epoch, 1, 1)) +
+                 0x100     * ord(substr($epoch, 2, 1)) +
+                             ord(substr($epoch, 3, 1)) -
+                 2082844800; # offset from Palm epoch (1904) to Unix
+        my $dt = DateTime->from_epoch(
+            epoch => $record{epoch},
+            time_zone => $timezone
+        );
+        $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
+        $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
+    } elsif($type == 0 || $type == 1) {
+        $dir = 'outbound';
+
+        # number field at 0x4C, possibly including some leading crap
+        # then an ASCIIZ number
+        ($num  = substr($buf, 0x4C)) =~ s/(^\00*[^\00]+)\00.*/$1/s;
+
+        # immediately followed by ASCIIZ name, with some trailing 0s
+        ($name = substr($buf, length($num) + 0x4C + 1)) =~ s/\00.*//s;
+
+        # ASCIIZ message, prefixed by 0x20 0x02 0x00 and length byte
+        ($msg  = substr($buf, length($num) + 0x4C + 1 + length($name) + 1)) =~ s/^.*\x20\x02\x00.|\00.*$//g;
+        
+        $num =~ s/^[^0-9+]+//; # clean leading rubbish from number
+
+        my $epoch = substr($buf, 0x24, 4);
+        $record{epoch} =
+                 0x1000000 * ord(substr($epoch, 0, 1)) +
+                 0x10000   * ord(substr($epoch, 1, 1)) +
+                 0x100     * ord(substr($epoch, 2, 1)) +
+                             ord(substr($epoch, 3, 1)) -
+                 2082844800; # offset from Palm epoch (1904) to Unix
+        my $dt = DateTime->from_epoch(
+            epoch => $record{epoch},
+            time_zone => $timezone
+        );
+        $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
+        $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
     } else {
         $type = 'unknown';
     }
@@ -221,9 +258,11 @@ sub ParseRecord {
 
 =head1 LIMITATIONS
 
-The message format is undocumented.  Consequently it has had to be
+The database structure is undocumented.  Consequently it has had to be
 reverse-engineered.  There appear to be several message formats in
-the database, not all of which are handled yet.
+the database, not all of which are handled yet.  Some of them have
+a superficial resemblance to those used by the 650, but it's only
+superficial.
 
 There is currently no support for creating a new database, or for
 editing the contents of an existing database.  If you need that
@@ -242,12 +281,14 @@ incorrectly because they're not quite what I thought they were.
 If you find any bugs please report them either using
 L<http://rt.cpan.org/> or by email.  Ideally, I would like to receive a
 sample database and a test file, which fails with the latest version of
-the module but will pass when I fix the bug.
+the module but will pass when I fix the bug.  Feel free to obscure
+real names, phone numbers, and messages in the database, but you
+should ensure that phone numbers are correctly formed.
 
 =head1 SEE ALSO
 
 L<Palm::SMS>, which handles SMS messages databases on some other models
-of Treo, and includes very basic Treo 680 support.
+of Treo.
 
 L<Palm::PDB>
 
