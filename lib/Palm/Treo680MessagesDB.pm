@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.7 2008/07/06 14:47:32 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.8 2008/07/07 18:04:57 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -148,7 +148,16 @@ sub ParseRecord {
     my $self = shift;
     my %record = @_;
 
-    my $buf = $record{rawdata} = delete($record{data});
+    $record{rawdata} = delete($record{data});
+    my $parsed = _parseblob($record{rawdata});
+    delete $record{rawdata} unless($incl_raw);
+
+    return {%record, %{$parsed}};
+}
+
+sub _parseblob {
+    my $buf = shift;
+    my %record = ();
 
     my $type = 256 * ord(substr($buf, 10, 1)) + ord(substr($buf, 11, 1));
     my($dir, $num, $name, $msg) = ('', '', '', '');
@@ -239,8 +248,6 @@ sub ParseRecord {
     } else {
         $type = 'unknown';
     }
-    delete $record{rawdata} unless($incl_raw);
-
     $record{debug} = "\n".Data::Hexdumper::hexdump(data => $buf) if($debug);
     $record{device}    = 'Treo 680';
     $record{direction} = $dir;  # inbound or outbound
