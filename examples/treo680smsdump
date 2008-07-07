@@ -22,3 +22,39 @@ foreach my $record (
         map { $record->{$_} } qw(name number date time epoch text)
     );
 }
+
+=head1 NAME
+
+treo680smsdump - a script to dump a Treo 680 SMS messages database
+in a human-readable form
+
+=head1 SYNOPSIS
+
+    treo680smsdump path/to/messages-database.pdb
+
+=head1 LIMITATIONS, BUGS and FEEDBACK
+
+This is a thin wrapper around Palm::Treo680MessagesDB and so suffers
+from all its limitations and perhaps some exciting ones of its own.
+Please see L<Palm::Treo680MessagesDB> for known issues and how to
+report bugs.
+
+=head1 SEE ALSO
+
+The 'smsdump' script distributed with Palm::SMS.
+
+=head1 AUTHOR, COPYRIGHT and LICENCE
+
+Copyright 2008 David Cantrell E<lt>david@cantrell.org.ukE<gt>
+
+This software is free-as-in-speech software, and may be used,
+distributed, and modified under the terms of either the GNU
+General Public Licence version 2 or the Artistic Licence. It's
+up to you which one you use. The full text of the licences can
+be found in the files GPL2.txt and ARTISTIC.txt, respectively.
+
+=head1 CONSPIRACY
+
+This is also free-as-in-mason software.
+
+=cut
