@@ -1,4 +1,5 @@
 #!/usr/bin/perl -w
+# $Id: 02a-default-timezone.t,v 1.2 2008/07/07 18:06:32 drhyde Exp $
 
 use strict;
 
