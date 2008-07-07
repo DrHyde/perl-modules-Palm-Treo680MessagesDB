@@ -1,8 +1,8 @@
 #!/usr/bin/perl -w
-# $Id: 01_regression.t,v 1.2 2008/07/07 18:06:32 drhyde Exp $
+# $Id: 01_regression.t,v 1.3 2008/07/07 22:44:20 drhyde Exp $
 
 # regression data produced thus
-# perl -Ilib -MData::Dumper -MPalm::PDB -MPalm::Treo680MessagesDB -e '$pdb=Palm::PDB->new();$pdb->Load("t/messages-database.pdb");foreach $r (@{$pdb->{records}}) { open(R, ">t/".$r->{offset}.".dd");print R Dumper($r);close(R)}'
+# perl -Ilib -MData::Dumper -MPalm::PDB -MPalm::Treo680MessagesDB -e '$pdb=Palm::PDB->new();$pdb->Load("t/regression/database.pdb");foreach $r (@{$pdb->{records}}) { open(R, ">t/".$r->{offset}.".dd");print R Dumper($r);close(R)}'
 
 use strict;
 use vars qw($VAR1);
@@ -13,7 +13,7 @@ use Palm::PDB;
 use Palm::Treo680MessagesDB;
 
 my $pdb = Palm::PDB->new();
-$pdb->Load('t/messages-database.pdb');
+$pdb->Load('t/regression/database.pdb');
 
 my @records = @{$pdb->{records}};
 my %records_by_offset = map { $_->{offset} => $_ } @records;
