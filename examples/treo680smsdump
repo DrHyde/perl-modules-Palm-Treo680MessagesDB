@@ -1,5 +1,5 @@
 #!perl
-# $Id: treo680smsdump,v 1.6 2008/07/08 22:36:10 drhyde Exp $
+# $Id: treo680smsdump,v 1.7 2008/07/08 22:41:33 drhyde Exp $
 
 use strict;
 use warnings;
@@ -7,11 +7,11 @@ use warnings;
 use vars qw($VERSION);
 
 use Palm::PDB;
-use Palm::Treo680MessagesDB;
 
 $VERSION = '1.0';
 my $file = pop();
 my $filtersub = sub { 1 };
+my $debug = 0;
 
 while(@ARGV) {
     my $switch = shift;
@@ -31,7 +31,7 @@ while(@ARGV) {
         my $date = shift;
 	$newfiltersub = sub { $_->{date} =~ /^$date/ };
     } elsif($switch eq '--binary') {
-        $Palm::Treo680MessagesDB::debug = 1;
+        $debug = 1;
     } elsif($switch eq '--type') {
 	my %typelist = ();
 	my $thisarg;
@@ -46,6 +46,7 @@ while(@ARGV) {
     $filtersub = sub { $newfiltersub->($_) && $oldfiltersub->($_) };
 }
 
+eval "use Palm::Treo680MessagesDB debug => $debug";
 my $pdb = Palm::PDB->new();
 $pdb->Load($file);
 
