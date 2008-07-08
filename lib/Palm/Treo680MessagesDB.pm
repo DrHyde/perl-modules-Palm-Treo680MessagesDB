@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.8 2008/07/07 18:04:57 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.9 2008/07/08 22:36:10 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -197,11 +197,14 @@ sub _parseblob {
         ($num  = substr($buf, 0x46)) =~ s/\00.*//s;
 
         # immediately followed by ASCIIZ name, with some trailing 0s
-        # some gibberish, then an ASCIIZ message
-        $name = substr($buf, length($num) + 1 + 0x46);
-        $name =~ /^([^\00]+)\00+.Trsm....([^\00]+)\00.*$/s;
-        ($name, $msg) = ($1, $2);
+        # some Trsm gibberish, then an ASCIIZ message
+        # $name = substr($buf, length($num) + 1 + 0x46);
+        # $name =~ /^([^\00]+)\00+.Trsm....([^\00]+)\00.*$/s;
+        # ($name, $msg) = ($1, $2);
+        ($name = substr($buf, length($num) + 1 + 0x46)) =~ s/\00.*//s;
+	$name = undef unless(length($name));
         $name .= " (may be truncated)" if($name && length($name) == 31);
+	($msg = $buf) =~ s/^.*?Trsm....(([^\00]+)\00.*)$/$2/s;
 
         # 32-bit time_t, but with 1904 epoch
         my $epoch = substr($buf, 0x24, 4);
@@ -217,6 +220,11 @@ sub _parseblob {
         );
         $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
         $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
+
+	if($msg eq "\01N@" && length($1) == 14) { # no real body. bleh
+	    delete @record{qw(epoch date time)};
+	    $type = 'unknown';
+        }
     } elsif($type == 0 || $type == 1) {
         $dir = 'outbound';
 
@@ -228,7 +236,8 @@ sub _parseblob {
         ($name = substr($buf, length($num) + 0x4C + 1)) =~ s/\00.*//s;
 
         # ASCIIZ message, prefixed by 0x20 0x02 0x00 and length byte
-        ($msg  = substr($buf, length($num) + 0x4C + 1 + length($name) + 1)) =~ s/^.*\x20\x02\x00.|\00.*$//g;
+        $msg = substr($buf, length($num) + 0x4C + 1 + length($name) + 1);
+	$msg =~ s/^.*\x20\x02\x00.|\00.*$//g;
         
         $num =~ s/^[^0-9+]+//; # clean leading rubbish from number
 
@@ -245,6 +254,11 @@ sub _parseblob {
         );
         $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
         $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
+
+	if($num eq '') {
+	    delete @record{qw(epoch date time)};
+	    $type = 'unknown';
+	}
     } else {
         $type = 'unknown';
     }

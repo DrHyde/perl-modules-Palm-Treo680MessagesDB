@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# $Id: 01_regression.t,v 1.3 2008/07/07 22:44:20 drhyde Exp $
+# $Id: 01_regression.t,v 1.4 2008/07/08 22:36:10 drhyde Exp $
 
 # regression data produced thus
 # perl -Ilib -MData::Dumper -MPalm::PDB -MPalm::Treo680MessagesDB -e '$pdb=Palm::PDB->new();$pdb->Load("t/regression/database.pdb");foreach $r (@{$pdb->{records}}) { open(R, ">t/".$r->{offset}.".dd");print R Dumper($r);close(R)}'
@@ -7,7 +7,7 @@
 use strict;
 use vars qw($VAR1);
 
-use Test::More tests => 1106;
+use Test::More tests => 1102;
 
 use Palm::PDB;
 use Palm::Treo680MessagesDB;
