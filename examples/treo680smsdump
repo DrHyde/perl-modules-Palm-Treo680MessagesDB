@@ -1,16 +1,44 @@
 #!perl
-# $Id: treo680smsdump,v 1.4 2008/07/07 18:06:32 drhyde Exp $
+# $Id: treo680smsdump,v 1.5 2008/07/08 13:31:48 drhyde Exp $
 
 use strict;
 use warnings;
 
+use vars qw($VERSION);
+
 use Palm::PDB;
 use Palm::Treo680MessagesDB;
 
+my $VERSION = '1.0';
+
 my $pdb = Palm::PDB->new();
-$pdb->Load(shift());
+$pdb->Load(pop());
+
+my $filtersub = sub { 1 };
+
+while(@ARGV) {
+    my $switch = shift;
+    my $newfiltersub = sub { 1 };
+    if($switch eq '--offset') {
+	my %offsetlist = ();
+	my $thisarg;
+	while($ARGV[0] =~ /^\d+$/) {
+	    $offsetlist{shift()} = 1;
+	}
+	$newfiltersub = sub { exists($offsetlist{$_->{offset}}) };
+    } elsif($switch eq '--inbound') {
+	$newfiltersub = sub { $_->{direction} eq 'inbound' };
+    } elsif($switch eq '--outbound') {
+	$newfiltersub = sub { $_->{direction} eq 'outbound' };
+    } else {
+        die("Bad switch $switch\n");
+    }
+    my $oldfiltersub = $filtersub;
+    $filtersub = sub { $newfiltersub->($_) && $oldfiltersub->($_) };
+}
 
 foreach my $record (
+    grep { $filtersub->($_) }
     @{$pdb->{records}}
 ) {
     # use Data::Dumper;
@@ -18,9 +46,10 @@ foreach my $record (
     # exit;
     printf(
         ($record->{direction} eq 'inbound' ? 'From:' : 'To:')."\t%s (%s)\n".
+	"Offset:\t%s\n".
         "When:\t%s %s\t (epoch: %s)\n".
         "Text:\t%s\n\n",
-        map { $record->{$_} } qw(name number date time epoch text)
+        map { defined($record->{$_}) ? $record->{$_} : '[no data]' } qw(name number offset date time epoch text)
     );
 }
 
@@ -31,7 +60,25 @@ in a human-readable form
 
 =head1 SYNOPSIS
 
-    treo680smsdump path/to/messages-database.pdb
+    treo680smsdump [options] path/to/messages-database.pdb
+
+=head1 OPTIONS
+
+You can filter results with the following options.
+
+=head2 --offset
+
+    --offset 123 [456 789 ...]
+
+Only return the record(s) at the specified offset(s)
+
+=head2 --inbound
+
+Only return inbound SMSes
+
+=head2 --outbound
+
+Only return outbound SMSes
 
 =head1 LIMITATIONS, BUGS and FEEDBACK
 
