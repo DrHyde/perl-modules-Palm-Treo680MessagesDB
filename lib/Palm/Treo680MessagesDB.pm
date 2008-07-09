@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.9 2008/07/08 22:36:10 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.10 2008/07/09 16:12:15 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -235,9 +235,9 @@ sub _parseblob {
         # immediately followed by ASCIIZ name, with some trailing 0s
         ($name = substr($buf, length($num) + 0x4C + 1)) =~ s/\00.*//s;
 
-        # ASCIIZ message, prefixed by 0x20 0x02 0x00 and length byte
+        # ASCIIZ message, prefixed by 0x20 0x02 16-bit length word
         $msg = substr($buf, length($num) + 0x4C + 1 + length($name) + 1);
-	$msg =~ s/^.*\x20\x02\x00.|\00.*$//g;
+	$msg =~ s/^.*\x20\x02..|\00.*$//g;
         
         $num =~ s/^[^0-9+]+//; # clean leading rubbish from number
 
