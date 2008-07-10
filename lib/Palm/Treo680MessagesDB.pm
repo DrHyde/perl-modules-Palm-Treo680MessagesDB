@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.11 2008/07/10 14:07:26 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.12 2008/07/10 22:32:48 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -30,10 +30,12 @@ sub import {
         my $orig_Load = \&Palm::PDB::Load;
         *Palm::PDB::Load = sub {
             $orig_Load->(@_);
-            $_[0]->{records} = [grep {
-                $_->{type} ne 'unknown' &&
-                !(exists($_->{epoch}) && $_->{epoch} < 946684800) # 2000-01-01 00:00
-            } @{$_[0]->{records}}] if(
+            $_[0]->{records} = [
+                grep {
+                    $_->{type} ne 'unknown' &&
+                    !(exists($_->{epoch}) && $_->{epoch} < 946684800) # 2000-01-01 00:00
+                } @{$_[0]->{records}}
+            ] if(
                 $_[0]->{creator} eq 'MsSt' &&
                 $_[0]->{type}    eq 'MsDb'
             );
@@ -49,10 +51,11 @@ Palm::Treo680MessagesDB - Handler for Treo 680 SMS message databases
 
     use Palm::PDB;
     use Palm::Treo680MessagesDB timezone => 'Europe/London';
+    use Data::Dumper;
 
     my $pdb = Palm::PDB->new();
     $pdb->Load("MessagesDB.pdb");
-    print Dumper(@{$pdb->{records}})'
+    print Dumper(@{$pdb->{records}});
 
 =head1 DESCRIPTION
 
@@ -202,9 +205,9 @@ sub _parseblob {
         # $name =~ /^([^\00]+)\00+.Trsm....([^\00]+)\00.*$/s;
         # ($name, $msg) = ($1, $2);
         ($name = substr($buf, length($num) + 1 + 0x46)) =~ s/\00.*//s;
-	$name = undef unless(length($name));
+        $name = undef unless(length($name));
         $name .= " (may be truncated)" if($name && length($name) == 31);
-	($msg = $buf) =~ s/^.*?Trsm....(([^\00]+)\00.*)$/$2/s;
+        ($msg = $buf) =~ s/^.*?Trsm....(([^\00]+)\00.*)$/$2/s;
 
         # 32-bit time_t, but with 1904 epoch
         my $epoch = substr($buf, 0x24, 4);
@@ -221,9 +224,9 @@ sub _parseblob {
         $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
         $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
 
-	if($msg eq "\01N@" && length($1) == 14) { # no real body. bleh
-	    delete @record{qw(epoch date time)};
-	    $type = 'unknown';
+        if($msg eq "\01N@" && length($1) == 14) { # no real body. bleh
+            delete @record{qw(epoch date time)};
+            $type = 'unknown';
         }
     } elsif($type == 0x0001) {
         $dir = 'outbound';
@@ -237,7 +240,7 @@ sub _parseblob {
 
         # ASCIIZ message, prefixed by 0x20 0x02 16-bit length word
         $msg = substr($buf, length($num) + 0x4C + 1 + length($name) + 1);
-	$msg =~ s/^.*\x20\x02..|\00.*$//g;
+        $msg =~ s/^.*\x20\x02..|\00.*$//g;
         
         $num =~ s/^[^0-9+]+//; # clean leading rubbish from number
 
@@ -255,21 +258,21 @@ sub _parseblob {
         $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
         $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
 
-	if($num eq '') {
-	    delete @record{qw(epoch date time)};
-	    $type = 'unknown';
-	}
+        if($num eq '') {
+            delete @record{qw(epoch date time)};
+            $type = 'unknown';
+        }
     } elsif($type == 0x0000 && substr($buf, 0x0040, 1) ne "\00") {
         $dir = 'outbound';
 
-	# message first, preceded by 0x2002 and 16 bit length
-	($msg = $buf) =~ s/^.*\040\02..//s;
-	$msg =~ s/\00.*//s;
+        # message first, preceded by 0x2002 and 16 bit length
+        ($msg = $buf) =~ s/^.*\040\02..//s;
+        $msg =~ s/\00.*//s;
 
-	# then some cruft, ASCIIZ number and name
-	# find number by finding *last* sequence of 6 or more digits, then
-	# going back 1 to find a + if it's there
-	($num, $name) = split(/\00/, ($buf =~ /(\+?\d{6,}\00[^\00]+\00)/g)[-1]);
+        # then some cruft, ASCIIZ number and name
+        # find number by finding *last* sequence of 6 or more digits, then
+        # going back 1 to find a + if it's there
+        ($num, $name) = split(/\00/, ($buf =~ /(\+?\d{6,}\00[^\00]+\00)/g)[-1]);
 
         my $epoch = substr($buf, index($buf, "\x80\00") + 2, 4);
         $record{epoch} =
@@ -285,10 +288,10 @@ sub _parseblob {
         $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
         $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
 
-	if($num eq '') {
-	    delete @record{qw(epoch date time)};
-	    $type = 'unknown';
-	}
+        if($num eq '') {
+            delete @record{qw(epoch date time)};
+            $type = 'unknown';
+        }
     } elsif($type == 0x0000) {
         $dir = 'outbound';
 
@@ -301,7 +304,7 @@ sub _parseblob {
 
         # ASCIIZ message, prefixed by 0x20 0x02 16-bit length word
         $msg = substr($buf, length($num) + 0x4C + 1 + length($name) + 1);
-	$msg =~ s/^.*\x20\x02..|\00.*$//g;
+        $msg =~ s/^.*\x20\x02..|\00.*$//g;
         
         $num =~ s/^[^0-9+]+//; # clean leading rubbish from number
 
@@ -319,10 +322,10 @@ sub _parseblob {
         $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
         $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
 
-	if($num eq '') {
-	    delete @record{qw(epoch date time)};
-	    $type = 'unknown';
-	}
+        if($num eq '') {
+            delete @record{qw(epoch date time)};
+            $type = 'unknown';
+        }
     } else {
         $type = 'unknown';
     }
