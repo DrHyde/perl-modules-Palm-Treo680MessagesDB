@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.10 2008/07/09 16:12:15 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.11 2008/07/10 14:07:26 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -225,7 +225,71 @@ sub _parseblob {
 	    delete @record{qw(epoch date time)};
 	    $type = 'unknown';
         }
-    } elsif($type == 0 || $type == 1) {
+    } elsif($type == 0x0001) {
+        $dir = 'outbound';
+
+        # number field at 0x4C, possibly including some leading crap
+        # then an ASCIIZ number
+        ($num  = substr($buf, 0x4C)) =~ s/(^\00*[^\00]+)\00.*/$1/s;
+
+        # immediately followed by ASCIIZ name, with some trailing 0s
+        ($name = substr($buf, length($num) + 0x4C + 1)) =~ s/\00.*//s;
+
+        # ASCIIZ message, prefixed by 0x20 0x02 16-bit length word
+        $msg = substr($buf, length($num) + 0x4C + 1 + length($name) + 1);
+	$msg =~ s/^.*\x20\x02..|\00.*$//g;
+        
+        $num =~ s/^[^0-9+]+//; # clean leading rubbish from number
+
+        my $epoch = substr($buf, 0x24, 4);
+        $record{epoch} =
+                 0x1000000 * ord(substr($epoch, 0, 1)) +
+                 0x10000   * ord(substr($epoch, 1, 1)) +
+                 0x100     * ord(substr($epoch, 2, 1)) +
+                             ord(substr($epoch, 3, 1)) -
+                 2082844800;
+        my $dt = DateTime->from_epoch(
+            epoch => $record{epoch},
+            time_zone => $timezone
+        );
+        $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
+        $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
+
+	if($num eq '') {
+	    delete @record{qw(epoch date time)};
+	    $type = 'unknown';
+	}
+    } elsif($type == 0x0000 && substr($buf, 0x0040, 1) ne "\00") {
+        $dir = 'outbound';
+
+	# message first, preceded by 0x2002 and 16 bit length
+	($msg = $buf) =~ s/^.*\040\02..//s;
+	$msg =~ s/\00.*//s;
+
+	# then some cruft, ASCIIZ number and name
+	# find number by finding *last* sequence of 6 or more digits, then
+	# going back 1 to find a + if it's there
+	($num, $name) = split(/\00/, ($buf =~ /(\+?\d{6,}\00[^\00]+\00)/g)[-1]);
+
+        my $epoch = substr($buf, index($buf, "\x80\00") + 2, 4);
+        $record{epoch} =
+                 0x1000000 * ord(substr($epoch, 0, 1)) +
+                 0x10000   * ord(substr($epoch, 1, 1)) +
+                 0x100     * ord(substr($epoch, 2, 1)) +
+                             ord(substr($epoch, 3, 1)) -
+                 2082844800;
+        my $dt = DateTime->from_epoch(
+            epoch => $record{epoch},
+            time_zone => $timezone
+        );
+        $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
+        $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
+
+	if($num eq '') {
+	    delete @record{qw(epoch date time)};
+	    $type = 'unknown';
+	}
+    } elsif($type == 0x0000) {
         $dir = 'outbound';
 
         # number field at 0x4C, possibly including some leading crap

@@ -568,3 +568,4 @@ t/regression/99567.dd
 t/regression/99715.dd
 t/regression/99869.dd
 t/01_regression.t
+t/regression/24262.dd
