@@ -570,3 +570,4 @@ t/regression/99715.dd
 t/regression/99869.dd
 t/regression/database.pdb
 TODO
+lib/Palm/Treo680MessagesDBformat.pod

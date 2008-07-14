@@ -1,0 +1,181 @@
+=head1 NAME
+
+Palm::Treo680MessagesDBformat - record format for the Palm Treo 680
+SMS messages database
+
+=head1 CREATOR
+
+MsSt
+
+=head1 TYPE
+
+MsDb
+
+=head1 DATA TYPES and INDEXES
+
+In the following, all values are assumed to be big-endian unless otherwise
+specified, and indexes start at 0.  So the first byte in a record is byte
+0x00, and the 4th byte is byte 0x03.  Human-readable text is generally
+in ASCIIZ format - that is a sequence of 8 bit characters terminated by an
+ASCII NUL character (hex 0x00).  OK, so it's really some kind of Latin-N
+encoding.
+
+=head1 RECORD TYPES
+
+The database can contain several record types.  The record type is a 16-bit
+number at offset 0x0A.  The structure varies from one record type to
+another.
+
+=head2 TYPE 0x400C (and maybe 0x4009)
+
+This represents an inbound message.  It is possible, that type 0x4009 may
+have the same structure but for outbound messages, as that has appeared
+in message databases from the Treo 650.
+
+Message data starts at offset 0x22:
+
+  0x22: ASCIIZ phone number for the other party
+        0x00
+	name of other party
+	1 or more 0x00 characters
+
+After the name and its trailing zeroes come four more bytes whose function
+is unknown, then the ASCIIZ message test.
+
+There are two more unknown bytes, then a 32-bit timestamp, a number of seconds
+since the Palm epoch.  0 is in 1904, so substract 2082844800 to get the Unix
+epoch.  We don't believe that the timezone is stored in the database.
+	
+=head2 TYPE 0x0002
+
+This represents an outbound message.
+
+The timestamp is at offset 0x24.
+
+Message data starts at offset 0x46 with an ASCIIZ number immediately
+followed by an ASCIIZ name and some optional trailing zeroes.  The name is
+truncated to 31 characters.  There then follows some gibberish including
+the string 'Trsm', four more bytes, and the ASCIIZ message.
+
+'Trsm' is the creator ID of the Treo 650's messages database.  Coincidence?
+I THINK NOT!
+
+=head3 EXCEPTION
+
+Decoding records as above will sometimes give as the message text the sequence
+0x01 0x4E 0x40.  These records' actual format is unknown.
+
+=head2 TYPE 0x0001
+
+This represents an outbound message.
+
+The timestamp is at offset 0x24.
+
+Message data starts at offset 0x4C.  There is first some *optional* leading
+zeroes, then an ASCIIZ phone number, immediately followed by an ASCIIZ name.
+There is then some unknown data, followed by the sequence 0x20 0x02, a 16-bit
+length word, and an ASCIIZ message.
+
+=head3 EXCEPTION
+
+Decoding records as above will sometimes give an empty phone number.  These
+records' actual format is unknown.
+
+=head2 TYPE 0x0000
+
+    } elsif($type == 0x0000 && substr($buf, 0x0040, 1) ne "\00") {
+        $dir = 'outbound';
+
+        # message first, preceded by 0x2002 and 16 bit length
+        ($msg = $buf) =~ s/^.*\040\02..//s;
+        $msg =~ s/\00.*//s;
+
+        # then some cruft, ASCIIZ number and name
+        # find number by finding *last* sequence of 6 or more digits, then
+        # going back 1 to find a + if it's there
+        ($num, $name) = split(/\00/, ($buf =~ /(\+?\d{6,}\00[^\00]+\00)/g)[-1]);
+
+        my $epoch = substr($buf, index($buf, "\x80\00") + 2, 4);
+        $record{epoch} =
+                 0x1000000 * ord(substr($epoch, 0, 1)) +
+                 0x10000   * ord(substr($epoch, 1, 1)) +
+                 0x100     * ord(substr($epoch, 2, 1)) +
+                             ord(substr($epoch, 3, 1)) -
+                 2082844800;
+        my $dt = DateTime->from_epoch(
+            epoch => $record{epoch},
+            time_zone => $timezone
+        );
+        $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
+        $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
+
+        if($num eq '') {
+            delete @record{qw(epoch date time)};
+            $type = 'unknown';
+        }
+    } elsif($type == 0x0000) {
+        $dir = 'outbound';
+
+        # number field at 0x4C, possibly including some leading crap
+        # then an ASCIIZ number
+        ($num  = substr($buf, 0x4C)) =~ s/(^\00*[^\00]+)\00.*/$1/s;
+
+        # immediately followed by ASCIIZ name, with some trailing 0s
+        ($name = substr($buf, length($num) + 0x4C + 1)) =~ s/\00.*//s;
+
+        # ASCIIZ message, prefixed by 0x20 0x02 16-bit length word
+        $msg = substr($buf, length($num) + 0x4C + 1 + length($name) + 1);
+        $msg =~ s/^.*\x20\x02..|\00.*$//g;
+        
+        $num =~ s/^[^0-9+]+//; # clean leading rubbish from number
+
+        my $epoch = substr($buf, 0x24, 4);
+        $record{epoch} =
+                 0x1000000 * ord(substr($epoch, 0, 1)) +
+                 0x10000   * ord(substr($epoch, 1, 1)) +
+                 0x100     * ord(substr($epoch, 2, 1)) +
+                             ord(substr($epoch, 3, 1)) -
+                 2082844800;
+        my $dt = DateTime->from_epoch(
+            epoch => $record{epoch},
+            time_zone => $timezone
+        );
+        $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
+        $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
+
+        if($num eq '') {
+            delete @record{qw(epoch date time)};
+            $type = 'unknown';
+        }
+
+=head1 BUGS, LIMITATIONS and FEEDBACK
+
+This documentation has been produced by reverse-engineering data stored
+on a limited number of phones.  Consequently it probably doesn't cover
+all the possibilities and may contain errors.  If you find any errors or
+omissions, blame Palm for not documenting it in the first place, and then
+please send a patch and some sample data either by email or using
+L<http://rt.cpan.org/>.
+
+=head1 SEE ALSO
+
+L<Palm::Treo680MessagesDB>, code implenting this documentation.
+
+L<Palm::SMS>, which handles SMS messages databases on some other models
+of Treo.
+
+=head1 AUTHOR, LICENCE and COPYRIGHT
+
+Copyright 2008 David Cantrell E<lt>F<david@cantrell.org.uk>E<gt>
+
+This documentation is free-as-in-speech.  It may be used,
+distributed and modified under the terms of the Creative Commons
+Attribution-Share Alike 2.0 UK: England & Wales License, whose
+text you may read at
+L<http://creativecommons.org/licenses/by-sa/2.0/uk/>.
+
+=head1 CONSPIRACY
+
+This is also free-as-in-mason documentation.
+
+=cut
