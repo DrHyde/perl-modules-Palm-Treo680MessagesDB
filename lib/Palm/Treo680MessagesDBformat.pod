@@ -32,12 +32,9 @@ This represents an inbound message.  It is possible, that type 0x4009 may
 have the same structure but for outbound messages, as that has appeared
 in message databases from the Treo 650.
 
-Message data starts at offset 0x22:
-
-  0x22: ASCIIZ phone number for the other party
-        0x00
-	name of other party
-	1 or more 0x00 characters
+Message data starts at offset 0x22, with an ASCIIZ phone number for the
+other party, followed by an ASCIIZ name, and optionally some more 0x00
+bytes.
 
 After the name and its trailing zeroes come four more bytes whose function
 is unknown, then the ASCIIZ message test.
@@ -83,70 +80,30 @@ records' actual format is unknown.
 
 =head2 TYPE 0x0000
 
-    } elsif($type == 0x0000 && substr($buf, 0x0040, 1) ne "\00") {
-        $dir = 'outbound';
+There appear to be two distinct record types both with type 0x0000.  Both
+are for outbound messages.
 
-        # message first, preceded by 0x2002 and 16 bit length
-        ($msg = $buf) =~ s/^.*\040\02..//s;
-        $msg =~ s/\00.*//s;
+=head3 SUBTYPE 1
 
-        # then some cruft, ASCIIZ number and name
-        # find number by finding *last* sequence of 6 or more digits, then
-        # going back 1 to find a + if it's there
-        ($num, $name) = split(/\00/, ($buf =~ /(\+?\d{6,}\00[^\00]+\00)/g)[-1]);
+The first can be recognised by having a non-NULL character in position 0x40.
 
-        my $epoch = substr($buf, index($buf, "\x80\00") + 2, 4);
-        $record{epoch} =
-                 0x1000000 * ord(substr($epoch, 0, 1)) +
-                 0x10000   * ord(substr($epoch, 1, 1)) +
-                 0x100     * ord(substr($epoch, 2, 1)) +
-                             ord(substr($epoch, 3, 1)) -
-                 2082844800;
-        my $dt = DateTime->from_epoch(
-            epoch => $record{epoch},
-            time_zone => $timezone
-        );
-        $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
-        $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
+The message text is preceded by 0x20 0x02 and a 16-bit length, and is ASCIIZ.
+The timestamp is preceded by 0x80 0x00.
 
-        if($num eq '') {
-            delete @record{qw(epoch date time)};
-            $type = 'unknown';
-        }
-    } elsif($type == 0x0000) {
-        $dir = 'outbound';
+It's not clear how to find the number and name.  A heuristic that seems to
+work is to find the *last* sequence of six or more digits preceded by an
+optional + sign.  This should be an ASCIIZ phone number, followed by an
+ASCIIZ name.
 
-        # number field at 0x4C, possibly including some leading crap
-        # then an ASCIIZ number
-        ($num  = substr($buf, 0x4C)) =~ s/(^\00*[^\00]+)\00.*/$1/s;
+=head3 SUBTYPE 2
 
-        # immediately followed by ASCIIZ name, with some trailing 0s
-        ($name = substr($buf, length($num) + 0x4C + 1)) =~ s/\00.*//s;
+The timestamp is at index 0x24.
 
-        # ASCIIZ message, prefixed by 0x20 0x02 16-bit length word
-        $msg = substr($buf, length($num) + 0x4C + 1 + length($name) + 1);
-        $msg =~ s/^.*\x20\x02..|\00.*$//g;
-        
-        $num =~ s/^[^0-9+]+//; # clean leading rubbish from number
+The number field starts at 0x4C and is ASCIIZ, but may be preceded by some
+extra NULs.  The number is immediately followed by the ASCIIZ name.
 
-        my $epoch = substr($buf, 0x24, 4);
-        $record{epoch} =
-                 0x1000000 * ord(substr($epoch, 0, 1)) +
-                 0x10000   * ord(substr($epoch, 1, 1)) +
-                 0x100     * ord(substr($epoch, 2, 1)) +
-                             ord(substr($epoch, 3, 1)) -
-                 2082844800;
-        my $dt = DateTime->from_epoch(
-            epoch => $record{epoch},
-            time_zone => $timezone
-        );
-        $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
-        $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
-
-        if($num eq '') {
-            delete @record{qw(epoch date time)};
-            $type = 'unknown';
-        }
+The message is preceded by 0x20 0x02 and a 16-bit length word, and is
+ASCIIZ.
 
 =head1 BUGS, LIMITATIONS and FEEDBACK
 
