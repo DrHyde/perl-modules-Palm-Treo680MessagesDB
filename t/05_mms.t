@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# $Id: 05_mms.t,v 1.1 2008/07/17 16:24:07 drhyde Exp $
+# $Id: 05_mms.t,v 1.2 2008/07/17 17:33:48 drhyde Exp $
 
 use strict;
 use vars qw($VAR1);
@@ -21,11 +21,53 @@ my @raw_records = map {
     $r;
 } qw(ms-012.40.1232940.pdr ms-013.40.1232941.pdr ms-014.40.1232942.pdr);
 
-open(FILE, 't/mms/ms.dd') || die("Can't read t/mms/ms.dd\n");
-my $struct = eval <FILE>;
-close(FILE);
+my($complete_parsed, $incomplete_parsed) = map { do {
+    open(my $file, "t/mms/$_.dd") || die("Can't read t/mms/$_.dd\n");
+    eval <$file>;
+} } qw(ms incomplete);
+
+ok(
+    Palm::Treo680MessagesDB::_parseblob($raw_records[0])->{type} eq
+    'unknown',
+    "Read first bit of an MMS - message not yet complete"
+);
 is_deeply(
-    ...
-    $struct,
-    "MMS data from Michal Seliga is parsed OK (without attachments)"
+    $Palm::Treo680MessagesDB::multipart,
+    {
+        number    => '0901234567',
+	name      => 'TaXX (M)',
+	epoch     => 0,
+	direction => 'outbound',
+    },
+    "Stored right info from first part"
+);
+    
+ok(
+    Palm::Treo680MessagesDB::_parseblob($raw_records[1])->{type} eq
+    'unknown',
+    "Read second bit of an MMS - message not yet complete"
+);
+is_deeply(
+    $Palm::Treo680MessagesDB::multipart,
+    {
+        number    => '0901234567',
+	name      => 'TaXX (M)',
+	epoch     => 0,
+	direction => 'outbound',
+	attachments => [
+	]
+    },
+    "Stored right info from second part"
+);
+
+is_deeply(
+    Palm::Treo680MessagesDB::_parseblob($raw_records[2]),
+    $complete_parsed,
+    "Sample MMS from Michal Seliga correctly parsed"
+);
+
+is_deeply(
+    $Palm::Treo680MessagesDB::multipart,
+    {},
+    "Multipart message cache cleared"
 );

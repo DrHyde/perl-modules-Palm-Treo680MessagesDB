@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.13 2008/07/17 16:24:07 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.14 2008/07/17 17:33:48 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -9,13 +9,15 @@ use Palm::Raw();
 use DateTime;
 use Data::Hexdumper ();
 
-use vars qw($VERSION @ISA $timezone $incl_raw $debug);
+use vars qw($VERSION @ISA $timezone $incl_raw $debug $multipart);
 
 $VERSION = '1.0';
 @ISA = qw(Palm::Raw);
 $timezone = 'Europe/London';
 $debug = 0;
 $incl_raw = 0;
+
+$multipart = {};
 
 sub import {
     my $class = shift;
