@@ -1,4 +1,4 @@
-# $Id: Treo680MessagesDB.pm,v 1.14 2008/07/17 17:33:48 drhyde Exp $
+# $Id: Treo680MessagesDB.pm,v 1.15 2008/07/22 16:40:07 drhyde Exp $
 
 package Palm::Treo680MessagesDB;
 
@@ -391,10 +391,6 @@ L<DateTime>
 =head1 THANKS TO
 
 Michal Seliga, for sample MMS data
-
-=head1 AUTHOR
-
-David Cantrell E<lt>F<david@cantrell.org.uk>E<gt>
 
 =head1 AUTHOR, COPYRIGHT and LICENCE
 
