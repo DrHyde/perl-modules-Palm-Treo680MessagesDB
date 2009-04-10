@@ -1,6 +1,5 @@
 ARTISTIC.txt
 CHANGES
-dodgy-offsets
 examples/treo680smsdump
 GPL2.txt
 lib/Palm/Treo680MessagesDB.pm
