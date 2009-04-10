@@ -1,4 +1,6 @@
-1.1     XXXX-XX-XX      Added doco on record formats;
-                        Add MMS support (maybe - sample size of 1)
+1.01    2009-04-10      Added doco on record formats;
+                        Fix bug that only showed up on Win32
+                        Add data and tests (currently skipped) for
+                          MMS support - but no code for 'em yet
 
 1.0     2008-07-10      Original release

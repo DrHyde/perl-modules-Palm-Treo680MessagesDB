@@ -11,7 +11,7 @@ use Data::Hexdumper ();
 
 use vars qw($VERSION @ISA $timezone $incl_raw $debug $multipart);
 
-$VERSION = '1.0';
+$VERSION = '1.01';
 @ISA = qw(Palm::Raw);
 $timezone = 'Europe/London';
 $debug = 0;
@@ -189,6 +189,17 @@ sub _parseblob {
                  0x100     * ord(substr($epoch, 2, 1)) +
                              ord(substr($epoch, 3, 1)) -
                  2082844800; # offset from Palm epoch (1904) to Unix
+
+        # if is because DateTime::from_epoch seems to DTwrongT on Win32
+        # when you get a negative epoch
+        if($record{epoch} > 0) {
+            my $dt = DateTime->from_epoch(
+                epoch => $record{epoch},
+                time_zone => $timezone
+            );
+            $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
+            $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
+        }
         my $dt = DateTime->from_epoch(
             epoch => $record{epoch},
             time_zone => $timezone
