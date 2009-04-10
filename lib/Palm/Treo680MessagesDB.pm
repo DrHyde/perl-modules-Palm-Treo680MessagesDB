@@ -200,12 +200,6 @@ sub _parseblob {
             $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
             $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
         }
-        my $dt = DateTime->from_epoch(
-            epoch => $record{epoch},
-            time_zone => $timezone
-        );
-        $record{date} = sprintf('%04d-%02d-%02d', $dt->year(), $dt->month(), $dt->day());
-        $record{time} = sprintf('%02d:%02d', $dt->hour(), $dt->minute());
     } elsif($type == 0x0002) {
         $dir = 'outbound';
 
