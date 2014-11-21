@@ -577,3 +577,4 @@ t/mms/ms-014.40.1232942.pdr
 t/mms/ms.dd
 t/michal-seliga-emails.txt
 t/mms/incomplete.dd
+MANIFEST.SKIP
