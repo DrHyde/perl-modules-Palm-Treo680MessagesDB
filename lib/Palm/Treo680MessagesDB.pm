@@ -1,5 +1,3 @@
-# $Id: Treo680MessagesDB.pm,v 1.15 2008/07/22 16:40:07 drhyde Exp $
-
 package Palm::Treo680MessagesDB;
 
 use strict;
@@ -11,7 +9,7 @@ use Data::Hexdumper ();
 
 use vars qw($VERSION @ISA $timezone $incl_raw $debug $multipart);
 
-$VERSION = '1.01';
+$VERSION = '1.02';
 @ISA = qw(Palm::Raw);
 $timezone = 'Europe/London';
 $debug = 0;
@@ -336,7 +334,7 @@ sub _parseblob {
     } else {
         $type = 'unknown';
     }
-    $record{debug} = "\n".Data::Hexdumper::hexdump(data => $buf) if($debug);
+    $record{debug} = "\n".Data::Hexdumper::hexdump(suppress_warnings => 1, data => $buf) if($debug);
     $record{device}    = 'Treo 680';
     $record{direction} = $dir;  # inbound or outbound
     $record{phone}     = $record{number} = $num;
