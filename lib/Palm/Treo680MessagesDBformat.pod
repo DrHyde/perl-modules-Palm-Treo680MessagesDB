@@ -112,7 +112,7 @@ on a limited number of phones.  Consequently it probably doesn't cover
 all the possibilities and may contain errors.  If you find any errors or
 omissions, blame Palm for not documenting it in the first place, and then
 please send a patch and some sample data either by email or using
-L<http://rt.cpan.org/>.
+Github.
 
 =head1 SEE ALSO
 

@@ -366,8 +366,8 @@ this myself unless I need it.  Behaviour if you try to create or
 edit a database is currently undefined, but editing a database will
 almost certainly break it.
 
-If you find any bugs please report them either using
-L<http://rt.cpan.org/> or by email.  Ideally, I would like to receive
+Bug reports should be made on Github or by email.
+Ideally, I would like to receive
 sample data and a test file, which fails with the latest version of
 the module but will pass when I fix the bug.
 
