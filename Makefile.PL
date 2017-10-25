@@ -3,7 +3,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME         => 'Palm::Treo680MessagesDB',
     META_MERGE => {
-        license => 'other',
+        license => 'open_source',
         resources => {
             repository => 'https://github.com/DrHyde/perl-modules-Palm-Treo680MessagesDB',
             bugtracker => 'https://github.com/DrHyde/perl-modules-Palm-Treo680MessagesDB/issues'
