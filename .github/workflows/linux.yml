@@ -37,7 +37,7 @@ jobs:
           PERL_USE_UNSAFE_INC: 0
         run: |
             perl -v
-            cpanm ExtUtils::MakeMaker Test::Pod Test::Pod::Coverage || cat /home/runner/.cpanm/work/*/build.log
+            cpanm ExtUtils::MakeMaker inc::latest Test::Pod Test::Pod::Coverage || cat /home/runner/.cpanm/work/*/build.log
             perl -Mparent -e0 || cpanm parent
             rm -rf /home/runner/.cpanm/work/*
             cpanm --installdeps . || cat /home/runner/.cpanm/work/*/build.log
