@@ -30,4 +30,5 @@ jobs:
           name: dist-for-linux-install
       - name: Install on Linux
         run: |
+          cpanm -n Module::Pluggable
           cpanm *.tar.gz
