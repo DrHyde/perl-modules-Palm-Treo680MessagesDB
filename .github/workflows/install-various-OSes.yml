@@ -1,3 +1,5 @@
+# Auto-generated file, see workflow-templates/install-various-OSes.yml
+
 on: [push, pull_request]
 name: Install on various OSes
 jobs:
@@ -29,7 +31,6 @@ jobs:
           name: dist-for-install
       - name: Install on Linux
         run: |
-          cpanm -n Module::Pluggable
           cpanm *.tar.gz
   install-netbsd:
     runs-on: 'ubuntu-latest'
