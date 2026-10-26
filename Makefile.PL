@@ -2,8 +2,10 @@ use 5.006; # need lexical warnings
 use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME         => 'Palm::Treo680MessagesDB',
-    META_MERGE => {
+    META_ADD => {
         license => 'open_source',
+},
+META_MERGE => {
         resources => {
             repository => 'https://github.com/DrHyde/perl-modules-Palm-Treo680MessagesDB',
             bugtracker => 'https://github.com/DrHyde/perl-modules-Palm-Treo680MessagesDB/issues'
